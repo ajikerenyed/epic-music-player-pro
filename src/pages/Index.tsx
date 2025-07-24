@@ -4,11 +4,12 @@ import { Equalizer } from '@/components/Equalizer';
 import { MusicVisualizer } from '@/components/MusicVisualizer';
 import { Playlist } from '@/components/Playlist';
 import { MusicUploader } from '@/components/MusicUploader';
+import { Library } from '@/components/Library';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Music2, Settings, Headphones, Library } from 'lucide-react';
+import { Music2, Settings, Headphones, FolderOpen } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -241,7 +242,7 @@ const Index = () => {
         <Tabs defaultValue="library" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4 glass-card">
             <TabsTrigger value="library" className="flex items-center gap-2">
-              <Library className="w-4 h-4" />
+              <FolderOpen className="w-4 h-4" />
               Library
             </TabsTrigger>
             <TabsTrigger value="visualizer" className="flex items-center gap-2">
@@ -259,7 +260,7 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="library">
-            <Playlist
+            <Library
               tracks={tracks}
               currentTrack={currentTrack}
               onTrackSelect={handleTrackSelect}
