@@ -3,11 +3,14 @@ import { MusicPlayer } from '@/components/MusicPlayer';
 import { Equalizer } from '@/components/Equalizer';
 import { MusicVisualizer } from '@/components/MusicVisualizer';
 import { Playlist } from '@/components/Playlist';
+import { MusicUploader } from '@/components/MusicUploader';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Music2, Settings, Headphones, Library } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface Track {
   id: string;
@@ -27,46 +30,68 @@ const Index = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(70);
   const [currentTime, setCurrentTime] = useState(0);
-  const [tracks, setTracks] = useState<Track[]>([
-    {
-      id: '1',
-      title: 'Midnight Dreams',
-      artist: 'Sonic Waves',
-      album: 'Digital Harmony',
-      duration: 245,
-      url: '',
-      coverArt: '',
-      playCount: 23,
-      isFavorite: true,
-      addedDate: new Date(),
-    },
-    {
-      id: '2',
-      title: 'Electric Soul',
-      artist: 'Bass Thunder',
-      album: 'Frequency',
-      duration: 198,
-      url: '',
-      coverArt: '',
-      playCount: 15,
-      isFavorite: false,
-      addedDate: new Date(),
-    },
-    {
-      id: '3',
-      title: 'Neon Lights',
-      artist: 'Cyber Symphony',
-      album: 'Future Sound',
-      duration: 267,
-      url: '',
-      coverArt: '',
-      playCount: 8,
-      isFavorite: true,
-      addedDate: new Date(),
-    },
-  ]);
+  const [tracks, setTracks] = useState<Track[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  // Load tracks from Supabase
+  useEffect(() => {
+    loadTracks();
+  }, []);
+
+  const loadTracks = async () => {
+    try {
+      const { data: tracksData, error: tracksError } = await supabase
+        .from('tracks')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (tracksError) throw tracksError;
+
+      // Get favorites
+      const { data: favoritesData, error: favoritesError } = await supabase
+        .from('favorites')
+        .select('track_id');
+
+      if (favoritesError) throw favoritesError;
+
+      // Get play counts
+      const { data: playHistoryData, error: playHistoryError } = await supabase
+        .from('play_history')
+        .select('track_id, play_count');
+
+      if (playHistoryError) throw playHistoryError;
+
+      const favoriteIds = new Set(favoritesData?.map(f => f.track_id) || []);
+      const playCounts = new Map(playHistoryData?.map(p => [p.track_id, p.play_count]) || []);
+
+      const formattedTracks: Track[] = (tracksData || []).map(track => ({
+        id: track.id,
+        title: track.title,
+        artist: track.artist || 'Unknown Artist',
+        album: track.album || 'Unknown Album',
+        duration: track.duration || 0,
+        url: track.file_path,
+        coverArt: '',
+        playCount: playCounts.get(track.id) || 0,
+        isFavorite: favoriteIds.has(track.id),
+        addedDate: new Date(track.created_at),
+      }));
+
+      setTracks(formattedTracks);
+    } catch (error) {
+      console.error('Error loading tracks:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load music library",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Simulate current time progression
@@ -104,25 +129,78 @@ const Index = () => {
     setCurrentTime(0);
   };
 
-  const handleTrackSelect = (track: Track) => {
+  const handleTrackSelect = async (track: Track) => {
     setCurrentTrack(track);
     setCurrentTime(0);
     setIsPlaying(true);
     
-    // Update play count
-    setTracks(prev => prev.map(t => 
-      t.id === track.id 
-        ? { ...t, playCount: (t.playCount || 0) + 1 }
-        : t
-    ));
+    // Update play count in database
+    try {
+      const { data: existingHistory } = await supabase
+        .from('play_history')
+        .select('*')
+        .eq('track_id', track.id)
+        .single();
+
+      if (existingHistory) {
+        await supabase
+          .from('play_history')
+          .update({ play_count: existingHistory.play_count + 1 })
+          .eq('track_id', track.id);
+      } else {
+        await supabase
+          .from('play_history')
+          .insert({ track_id: track.id, play_count: 1 });
+      }
+
+      // Update local state
+      setTracks(prev => prev.map(t => 
+        t.id === track.id 
+          ? { ...t, playCount: (t.playCount || 0) + 1 }
+          : t
+      ));
+    } catch (error) {
+      console.error('Error updating play count:', error);
+    }
   };
 
-  const handleToggleFavorite = (trackId: string) => {
-    setTracks(prev => prev.map(track => 
-      track.id === trackId 
-        ? { ...track, isFavorite: !track.isFavorite }
-        : track
-    ));
+  const handleToggleFavorite = async (trackId: string) => {
+    const track = tracks.find(t => t.id === trackId);
+    if (!track) return;
+
+    try {
+      if (track.isFavorite) {
+        // Remove from favorites
+        await supabase
+          .from('favorites')
+          .delete()
+          .eq('track_id', trackId);
+      } else {
+        // Add to favorites
+        await supabase
+          .from('favorites')
+          .insert({ track_id: trackId });
+      }
+
+      // Update local state
+      setTracks(prev => prev.map(t => 
+        t.id === trackId 
+          ? { ...t, isFavorite: !t.isFavorite }
+          : t
+      ));
+
+      toast({
+        title: track.isFavorite ? "Removed from favorites" : "Added to favorites",
+        description: `${track.title} by ${track.artist}`,
+      });
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update favorites",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSeek = (time: number) => {
@@ -241,29 +319,7 @@ const Index = () => {
                 </div>
               </Card>
               
-              <Card className="glass-card p-6 space-y-4">
-                <h3 className="text-lg font-semibold gradient-text">File Scanner</h3>
-                <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Automatically scan and import music files from your device
-                  </p>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Supported formats:</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {['.mp3', '.wav', '.m4a', '.aac', '.flac', '.mp4'].map(format => (
-                        <Badge key={format} variant="outline" className="text-xs">
-                          {format}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  <Button className="w-full bg-gradient-secondary neon-glow-accent">
-                    Scan Device for Music
-                  </Button>
-                </div>
-              </Card>
+              <MusicUploader onUploadComplete={loadTracks} />
             </div>
           </TabsContent>
         </Tabs>
