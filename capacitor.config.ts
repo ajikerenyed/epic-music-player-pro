@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.17e9ddbfbcbe4cc0b7233e17310ef558',
+  appId: 'com.epicmusicpro',
   appName: 'Epic Music Player',
   webDir: 'dist',
   server: {
