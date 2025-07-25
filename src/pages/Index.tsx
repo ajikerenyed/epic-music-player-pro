@@ -1,15 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { MusicPlayer } from '@/components/MusicPlayer';
-import { Equalizer } from '@/components/Equalizer';
 import { MusicVisualizer } from '@/components/MusicVisualizer';
 import { Playlist } from '@/components/Playlist';
-import { MusicScanner } from '@/components/MusicScanner';
-import { Library } from '@/components/Library';
+import { Settings } from '@/components/Settings';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Music2, Settings, Headphones, FolderOpen } from 'lucide-react';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Music2, Settings as SettingsIcon, List, Menu } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -214,116 +212,117 @@ const Index = () => {
 
   return (
     <div className="min-h-screen pb-32">
-      {/* Header */}
-      <div className="p-6 border-b border-border/50">
+      {/* Minimal Header */}
+      <div className="p-4 border-b border-border/50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-primary neon-glow flex items-center justify-center">
-              <Music2 className="w-6 h-6 text-primary-foreground" />
+            <div className="w-8 h-8 rounded-lg bg-gradient-primary neon-glow flex items-center justify-center">
+              <Music2 className="w-5 h-5 text-primary-foreground" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold gradient-text">SoundScape</h1>
-              <p className="text-sm text-muted-foreground">Sonic Studio</p>
-            </div>
+            <h1 className="text-xl font-bold gradient-text">SoundScape</h1>
           </div>
+          
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="bg-gradient-primary">
-              Premium
-            </Badge>
-            <Badge variant="outline" className="neon-glow-cyan">
-              Dolby Digital
-            </Badge>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="sm" className="flex items-center gap-2">
+                  <List className="w-4 h-4" />
+                  Playlist
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-80 glass-card border-border/50">
+                <Playlist
+                  tracks={tracks}
+                  currentTrack={currentTrack}
+                  isPlaying={isPlaying}
+                  onTrackSelect={handleTrackSelect}
+                  onToggleFavorite={handleToggleFavorite}
+                />
+              </SheetContent>
+            </Sheet>
+
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="sm" className="flex items-center gap-2">
+                  <SettingsIcon className="w-4 h-4" />
+                  Settings
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-full max-w-4xl glass-card border-border/50">
+                <Settings
+                  tracks={tracks}
+                  currentTrack={currentTrack}
+                  onTrackSelect={handleTrackSelect}
+                  onToggleFavorite={handleToggleFavorite}
+                  onScanComplete={loadTracks}
+                />
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Main Visualizer Content */}
       <div className="p-6">
-        <Tabs defaultValue="library" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 glass-card">
-            <TabsTrigger value="library" className="flex items-center gap-2">
-              <FolderOpen className="w-4 h-4" />
-              Library
-            </TabsTrigger>
-            <TabsTrigger value="visualizer" className="flex items-center gap-2">
-              <Headphones className="w-4 h-4" />
-              Visualizer
-            </TabsTrigger>
-            <TabsTrigger value="equalizer" className="flex items-center gap-2">
-              <Settings className="w-4 h-4" />
-              Equalizer
-            </TabsTrigger>
-            <TabsTrigger value="effects" className="flex items-center gap-2">
-              <Music2 className="w-4 h-4" />
-              Effects
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="library">
-            <Library
-              tracks={tracks}
-              currentTrack={currentTrack}
-              onTrackSelect={handleTrackSelect}
-              onToggleFavorite={handleToggleFavorite}
-            />
-          </TabsContent>
-
-          <TabsContent value="visualizer">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <MusicVisualizer isPlaying={isPlaying} />
-              <Card className="glass-card p-6 space-y-4">
-                <h3 className="text-lg font-semibold gradient-text">Now Playing</h3>
-                <div className="text-center space-y-4">
-                  <div className="w-32 h-32 mx-auto rounded-2xl bg-gradient-primary neon-glow flex items-center justify-center">
-                    <Music2 className="w-16 h-16 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-lg">
-                      {currentTrack?.title || 'No track selected'}
-                    </h4>
-                    <p className="text-muted-foreground">
-                      {currentTrack?.artist || 'Unknown artist'}
-                    </p>
-                  </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Visualizer */}
+          <div className="lg:col-span-2">
+            <MusicVisualizer isPlaying={isPlaying} />
+          </div>
+          
+          {/* Now Playing Card */}
+          <div className="space-y-6">
+            <Card className="glass-card p-6">
+              <h3 className="text-lg font-semibold gradient-text mb-4">Now Playing</h3>
+              <div className="text-center space-y-4">
+                <div className="w-48 h-48 mx-auto rounded-2xl bg-gradient-primary neon-glow flex items-center justify-center">
+                  <Music2 className="w-24 h-24 text-primary-foreground" />
                 </div>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="equalizer">
-            <Equalizer />
-          </TabsContent>
-
-          <TabsContent value="effects">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="glass-card p-6 space-y-4">
-                <h3 className="text-lg font-semibold gradient-text">Audio Effects</h3>
-                <div className="space-y-4">
-                  <div className="p-4 bg-gradient-card rounded-lg border border-primary/20 neon-glow">
-                    <h4 className="font-medium mb-2">3D Surround Sound</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Experience immersive 360° audio with virtual surround sound processing
-                    </p>
-                  </div>
-                  <div className="p-4 bg-gradient-card rounded-lg border border-accent/20 neon-glow-accent">
-                    <h4 className="font-medium mb-2">Bass Enhancement</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Dynamic bass boost with intelligent frequency analysis
-                    </p>
-                  </div>
-                  <div className="p-4 bg-gradient-card rounded-lg border border-neon-cyan/20 neon-glow-cyan">
-                    <h4 className="font-medium mb-2">Vocal Clarity</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Enhanced vocal presence with noise reduction
-                    </p>
-                  </div>
+                <div>
+                  <h4 className="font-bold text-xl mb-1">
+                    {currentTrack?.title || 'No track selected'}
+                  </h4>
+                  <p className="text-muted-foreground text-lg">
+                    {currentTrack?.artist || 'Unknown artist'}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    {currentTrack?.album || 'Unknown album'}
+                  </p>
                 </div>
-              </Card>
-              
-              <MusicScanner onScanComplete={loadTracks} />
-            </div>
-          </TabsContent>
-        </Tabs>
+                
+                <div className="flex items-center justify-center gap-2">
+                  <Badge variant="outline" className="neon-glow-cyan">
+                    {tracks.length} tracks
+                  </Badge>
+                  {currentTrack?.isFavorite && (
+                    <Badge variant="outline" className="neon-glow-accent">
+                      Favorite
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </Card>
+
+            {/* Quick Stats */}
+            <Card className="glass-card p-4">
+              <h4 className="font-semibold mb-3 gradient-text">Library Stats</h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total Tracks:</span>
+                  <span>{tracks.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Favorites:</span>
+                  <span>{tracks.filter(t => t.isFavorite).length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total Plays:</span>
+                  <span>{tracks.reduce((sum, t) => sum + (t.playCount || 0), 0)}</span>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
       </div>
 
       {/* Music Player */}
