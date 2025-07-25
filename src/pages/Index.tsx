@@ -3,7 +3,7 @@ import { MusicPlayer } from '@/components/MusicPlayer';
 import { Equalizer } from '@/components/Equalizer';
 import { MusicVisualizer } from '@/components/MusicVisualizer';
 import { Playlist } from '@/components/Playlist';
-import { MusicUploader } from '@/components/MusicUploader';
+import { MusicScanner } from '@/components/MusicScanner';
 import { Library } from '@/components/Library';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -320,7 +320,7 @@ const Index = () => {
                 </div>
               </Card>
               
-              <MusicUploader onUploadComplete={loadTracks} />
+              <MusicScanner onScanComplete={loadTracks} />
             </div>
           </TabsContent>
         </Tabs>
